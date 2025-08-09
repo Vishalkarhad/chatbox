@@ -23,6 +23,13 @@ def history(username):
     user_msgs.sort(key=lambda x: x['timestamp'])
     return jsonify(user_msgs)
 
+@app.route('/clearchat', methods=['GET'])
+def clear_chat():
+    MESSAGES.clear()   # सर्व messages delete
+    PREVIEWS.clear()   # typing previews delete
+    return jsonify({"status": "success", "message": "Chat history and previews cleared"})
+
+
 # Socket handlers
 @socketio.on('register')
 def on_register(data):
