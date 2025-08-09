@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Two Friends Chat</title>
+<title>Two Friends Chat with Live Preview</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 0; padding-bottom: 70px; background: #f5f5f5;}
   #chat-box {
@@ -66,73 +66,136 @@
   <button id="send-btn">Send</button>
 </div>
 
-<script src="/socket.io/socket.io.js"></script>
-
-
+<!-- Socket.IO client -->
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
-  const socket = io();
-  const chatBox = document.getElementById('chat-box');
-  const senderSelect = document.getElementById('sender');
-  const messageInput = document.getElementById('message');
-  const sendBtn = document.getElementById('send-btn');
+  const socket = io(); // connects to same origin
+  let currentUser = document.getElementById("sender").value;
 
-  function renderMessage(msg) {
-    const div = document.createElement('div');
-    div.classList.add('message');
-    div.classList.add(msg.sender === senderSelect.value ? 'sender' : 'receiver');
-    div.textContent = msg.text;
-    chatBox.appendChild(div);
+  // register on connect
+  function register() {
+    currentUser = document.getElementById("sender").value;
+    socket.emit('register', { username: currentUser });
+    // clear input and local preview UI
+    document.getElementById("message").value = "";
+    renderChat([]); // we will fetch history via socket 'history' event or via fetch
+  }
+
+  // Local in-memory messages for display (mirrors server)
+  let messages = [];
+  let currentPreview = ""; // preview from other user
+
+  function renderChat(extraMsgs=[]) {
+    const chatBox = document.getElementById("chat-box");
+    chatBox.innerHTML = "";
+    const all = messages.concat(extraMsgs);
+    all.sort((a,b) => a.timestamp - b.timestamp);
+
+    all.forEach(msg => {
+      const div = document.createElement("div");
+      div.classList.add("message");
+      if(msg.sender === currentUser) {
+        div.classList.add("sender");
+      } else {
+        div.classList.add("receiver");
+      }
+      div.textContent = msg.text;
+      chatBox.appendChild(div);
+    });
+
+    // show preview from other user
+    const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
+    if(currentPreview && currentPreview.trim() !== "") {
+      const previewDiv = document.createElement("div");
+      previewDiv.classList.add("message", "receiver", "preview");
+      previewDiv.textContent = currentPreview;
+      chatBox.appendChild(previewDiv);
+    }
+
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  function renderPreview(sender, text) {
-    const oldPreview = document.querySelector('.preview');
-    if (oldPreview) oldPreview.remove();
-    if (sender !== senderSelect.value && text.trim() !== '') {
-      const previewDiv = document.createElement('div');
-      previewDiv.classList.add('message', 'receiver', 'preview');
-      previewDiv.textContent = text;
-      chatBox.appendChild(previewDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
+  // receive history from server
+  socket.on('history', (data) => {
+    messages = data || [];
+    renderChat();
+  });
+
+  // receive a new message
+  socket.on('new_message', (msg) => {
+    messages.push(msg);
+    renderChat();
+  });
+
+  // receive preview/typing from other user
+  socket.on('preview', (data) => {
+    // data: { from: 'friend1', text: '...' }
+    const from = data.from;
+    const text = data.text || "";
+    const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
+    // only accept preview if it's from the other user
+    if(from === otherUser) {
+      currentPreview = text;
+      renderChat();
     }
+  });
+
+  function sendMessage() {
+    const sender = document.getElementById("sender").value;
+    const receiver = sender === "friend1" ? "friend2" : "friend1";
+    const messageInput = document.getElementById("message");
+    const text = messageInput.value.trim();
+    if(!text) return;
+    socket.emit('send_message', { sender, receiver, text });
+    messageInput.value = "";
+    // also clear typing / preview locally and notify server
+    socket.emit('typing', { sender, receiver, text: '' });
   }
 
-  sendBtn.addEventListener('click', () => {
-    const text = messageInput.value.trim();
-    if (!text) return;
-    socket.emit('send_message', {
-      sender: senderSelect.value,
-      receiver: senderSelect.value === 'friend1' ? 'friend2' : 'friend1',
-      text: text
-    });
-    messageInput.value = '';
-    socket.emit('stop_typing', { sender: senderSelect.value });
-  });
-
-  messageInput.addEventListener('input', () => {
+  // typing preview emit
+  let typingTimer = null;
+  function previewMessage() {
+    const sender = document.getElementById("sender").value;
+    const receiver = sender === "friend1" ? "friend2" : "friend1";
+    const messageInput = document.getElementById("message");
     const text = messageInput.value;
-    if (text.trim() === '') {
-      socket.emit('stop_typing', { sender: senderSelect.value });
-    } else {
-      socket.emit('typing_preview', { sender: senderSelect.value, previewText: text });
-    }
-  });
 
-  messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+    socket.emit('typing', { sender, receiver, text });
+
+    // optional: debounce rendering locally
+    if(typingTimer) clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+      // no-op; server pushes preview back to other user
+    }, 200);
+  }
+
+  // UI events
+  document.getElementById("send-btn").addEventListener("click", sendMessage);
+  document.getElementById("message").addEventListener("input", previewMessage);
+  document.getElementById("message").addEventListener("keydown", e => {
+    if(e.key === "Enter") {
       e.preventDefault();
-      sendBtn.click();
+      sendMessage();
     }
   });
-
-  socket.on('new_message', renderMessage);
-  socket.on('typing_update', (data) => renderPreview(data.sender, data.previewText || ''));
-  socket.on('history', (messages) => {
-    chatBox.innerHTML = '';
-    messages.forEach(renderMessage);
+  document.getElementById("sender").addEventListener("change", () => {
+    // change current user, register again
+    register();
   });
 
-  socket.emit('request_history');
+  // when page loads, register
+  window.addEventListener('load', () => {
+    register();
+  });
+
+  // optional: also listen for manual history fetch (if needed)
+  async function fetchHistory() {
+    const res = await fetch('/history/' + currentUser);
+    const data = await res.json();
+    messages = data || [];
+    renderChat();
+  }
 </script>
+
 </body>
 </html>
