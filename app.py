@@ -15,8 +15,9 @@ def index():
 
 @socketio.on('send_message')
 def handle_send_message(data):
-    chat_messages.append(data)
+    print("Message received:", data)  # Debug
     emit('new_message', data, broadcast=True)
+
 
 @socketio.on('typing_preview')
 def handle_typing_preview(data):
