@@ -3,117 +3,99 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Two Friends Chat</title>
+<title>Two Friends Chat with Live Preview</title>
 <style>
   body {
     font-family: Arial, sans-serif;
     margin: 0;
-    background: #f0f2f5;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
+    padding-bottom: 70px;
+    background: #f5f5f5;
   }
-
   #chat-box {
-    flex: 1;
-    padding: 15px;
+    padding: 10px;
     overflow-y: auto;
+    height: calc(100vh - 70px);
     display: flex;
     flex-direction: column;
-    justify-content: flex-end; /* Chat नेहमी खाली */
+    justify-content: flex-end;
   }
-
   .message {
-    max-width: 70%;
-    padding: 10px 14px;
-    margin: 6px 0;
-    border-radius: 18px;
-    line-height: 1.4;
-    font-size: 15px;
-    position: relative;
+    max-width: 60%;
+    padding: 8px 12px;
+    margin: 5px;
+    border-radius: 10px;
     word-wrap: break-word;
+    line-height: 1.3;
+    font-size: 16px;
   }
   .sender {
-    background: #0084ff;
-    color: white;
+    background: #d1e7ff;
     align-self: flex-end;
-    border-bottom-right-radius: 5px;
+    text-align: right;
   }
   .receiver {
-    background: #e4e6eb;
-    color: #050505;
+    background: #c1f7d1;
     align-self: flex-start;
-    border-bottom-left-radius: 5px;
+    text-align: left;
   }
-
-  .status {
-    font-size: 11px;
-    display: inline-flex;
-    align-items: center;
-    margin-left: 5px;
-  }
-  .tick {
-    display: inline-block;
-    margin-left: 1px;
-    transform: scale(1.2);
-  }
-  .tick.single::before {
-    content: '✓';
-  }
-  .tick.double::before {
-    content: '✓✓';
-  }
-  .tick.blue {
-    color: #34b7f1;
-  }
-
   .preview {
-    font-style: italic;
     opacity: 0.6;
+    font-style: italic;
   }
 
+  /* Fixed bottom input area */
   #input-area {
-    display: flex;
-    align-items: flex-end;
-    padding: 8px;
+    position: fixed;
+    bottom: 0; left: 0;
+    width: 100%;
     background: white;
-    border-top: 1px solid #ddd;
-    position: sticky;
-    bottom: 0;
+    padding: 8px;
+    display: flex;
+    gap: 6px;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    z-index: 10;
   }
-  select {
+
+  /* Small dropdown */
+  #sender {
     padding: 6px;
-    font-size: 14px;
+    font-size: 13px;
     border-radius: 6px;
     border: 1px solid #ccc;
-    margin-right: 5px;
+    background: #f9f9f9;
+    flex: 0 0 80px;
   }
-  textarea {
+
+  /* Modern input */
+  #message {
     flex: 1;
-    padding: 10px 12px;
+    padding: 10px 14px;
     font-size: 15px;
     border-radius: 20px;
     border: 1px solid #ccc;
-    resize: none;
-    overflow-y: hidden;
-    max-height: 100px;
+    background: #f5f5f5;
+    outline: none;
+    transition: border 0.2s, background 0.2s;
   }
-  button {
+  #message:focus {
+    border-color: #0084ff;
+    background: white;
+  }
+
+  /* Modern send button */
+  #send-btn {
     background: #0084ff;
-    border: none;
     color: white;
-    padding: 10px;
-    border-radius: 50%;
-    margin-left: 6px;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    transition: background 0.2s;
   }
-  button::before {
-    content: '➤';
-    font-size: 18px;
-    transform: rotate(45deg);
+  #send-btn:hover {
+    background: #006fd6;
   }
 </style>
 </head>
@@ -126,131 +108,113 @@
     <option value="friend1">Friend 1</option>
     <option value="friend2">Friend 2</option>
   </select>
-  <textarea id="message" placeholder="Type a message..." rows="1"></textarea>
-  <button id="send-btn"></button>
+  <input type="text" id="message" placeholder="Type a message..." autocomplete="off"/>
+  <button id="send-btn">Send</button>
 </div>
 
+<!-- Socket.IO client -->
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
-const room_id = window.location.pathname.split("/").pop();
-const socket = io();
-let currentUser = document.getElementById("sender").value;
+  const room_id = window.location.pathname.split("/").pop();
+  const socket = io();
+  let currentUser = document.getElementById("sender").value;
 
-function register() {
-  currentUser = document.getElementById("sender").value;
-  socket.emit('register', { username: currentUser, room_id: room_id });
-  document.getElementById("message").value = "";
-  renderChat([]);
-}
+  function register() {
+    currentUser = document.getElementById("sender").value;
+    socket.emit('register', { username: currentUser, room_id: room_id });
+    document.getElementById("message").value = "";
+    renderChat([]);
+  }
 
-let messages = [];
-let currentPreview = "";
+  let messages = [];
+  let currentPreview = "";
 
-function renderChat(extraMsgs=[]) {
-  const chatBox = document.getElementById("chat-box");
-  chatBox.innerHTML = "";
-  const all = messages.concat(extraMsgs);
-  all.sort((a,b) => a.timestamp - b.timestamp);
+  function renderChat(extraMsgs=[]) {
+    const chatBox = document.getElementById("chat-box");
+    chatBox.innerHTML = "";
+    const all = messages.concat(extraMsgs);
+    all.sort((a,b) => a.timestamp - b.timestamp);
 
-  all.forEach(msg => {
-    const div = document.createElement("div");
-    div.classList.add("message");
-    if(msg.sender === currentUser) {
-      div.classList.add("sender");
-    } else {
-      div.classList.add("receiver");
+    all.forEach(msg => {
+      const div = document.createElement("div");
+      div.classList.add("message");
+      if(msg.sender === currentUser) {
+        div.classList.add("sender");
+      } else {
+        div.classList.add("receiver");
+      }
+      div.textContent = msg.text;
+      chatBox.appendChild(div);
+    });
+
+    const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
+    if(currentPreview && currentPreview.trim() !== "") {
+      const previewDiv = document.createElement("div");
+      previewDiv.classList.add("message", "receiver", "preview");
+      previewDiv.textContent = currentPreview;
+      chatBox.appendChild(previewDiv);
     }
-    div.innerHTML = `
-      ${msg.text}
-      ${msg.sender === currentUser ? 
-        `<span class="status">
-          ${msg.status === 'sent' ? '<span class="tick single"></span>' :
-            msg.status === 'delivered' ? '<span class="tick double"></span>' :
-            msg.status === 'seen' ? '<span class="tick double blue"></span>' : ''}
-        </span>` 
-      : ''}
-    `;
-    chatBox.appendChild(div);
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  socket.on('history', (data) => {
+    messages = data || [];
+    renderChat();
   });
 
-  const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
-  if(currentPreview && currentPreview.trim() !== "") {
-    const previewDiv = document.createElement("div");
-    previewDiv.classList.add("message", "receiver", "preview");
-    previewDiv.textContent = currentPreview;
-    chatBox.appendChild(previewDiv);
-  }
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-socket.on('history', (data) => {
-  messages = data || [];
-  renderChat();
-});
-
-socket.on('new_message', (msg) => {
-  messages.push(msg);
-  renderChat();
-  // जर दुसऱ्या user ने मेसेज वाचला तर tick update करणे
-  if(msg.receiver === currentUser) {
-    socket.emit('mark_seen', { messageId: msg.id, room_id: room_id });
-  }
-});
-
-socket.on('preview', (data) => {
-  const from = data.from;
-  const text = data.text || "";
-  const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
-  if(from === otherUser) {
-    currentPreview = text;
+  socket.on('new_message', (msg) => {
+    messages.push(msg);
     renderChat();
+  });
+
+  socket.on('preview', (data) => {
+    const from = data.from;
+    const text = data.text || "";
+    const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
+    if(from === otherUser) {
+      currentPreview = text;
+      renderChat();
+    }
+  });
+
+  function sendMessage() {
+    const sender = currentUser;
+    const receiver = sender === "friend1" ? "friend2" : "friend1";
+    const text = document.getElementById("message").value.trim();
+    if (!text) return;
+    socket.emit('send_message', { sender, receiver, text, room_id: room_id });
+    document.getElementById("message").value = "";
+    socket.emit('typing', { sender, receiver, text: '', room_id: room_id });
   }
-});
 
-socket.on('update_status', (data) => {
-  const { messageId, status } = data;
-  messages = messages.map(m => m.id === messageId ? { ...m, status } : m);
-  renderChat();
-});
-
-function sendMessage() {
-  const sender = currentUser;
-  const receiver = sender === "friend1" ? "friend2" : "friend1";
-  const text = document.getElementById("message").value.trim();
-  if (!text) return;
-  socket.emit('send_message', { sender, receiver, text, room_id: room_id, status: 'sent' });
-  document.getElementById("message").value = "";
-  autoResize();
-  socket.emit('typing', { sender, receiver, text: '', room_id: room_id });
-}
-
-function previewMessage() {
-  const sender = currentUser;
-  const receiver = sender === "friend1" ? "friend2" : "friend1";
-  const text = document.getElementById("message").value;
-  socket.emit('typing', { sender, receiver, text, room_id: room_id });
-}
-
-document.getElementById("send-btn").addEventListener("click", sendMessage);
-document.getElementById("message").addEventListener("input", () => {
-  previewMessage();
-  autoResize();
-});
-document.getElementById("message").addEventListener("keydown", e => {
-  if(e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
+  function previewMessage() {
+    const sender = currentUser;
+    const receiver = sender === "friend1" ? "friend2" : "friend1";
+    const text = document.getElementById("message").value;
+    socket.emit('typing', { sender, receiver, text, room_id: room_id });
   }
-});
-document.getElementById("sender").addEventListener("change", register);
 
-function autoResize() {
-  const textarea = document.getElementById("message");
-  textarea.style.height = 'auto';
-  textarea.style.height = textarea.scrollHeight + 'px';
-}
+  document.getElementById("send-btn").addEventListener("click", sendMessage);
+  document.getElementById("message").addEventListener("input", previewMessage);
+  document.getElementById("message").addEventListener("keydown", e => {
+    if(e.key === "Enter") {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  document.getElementById("sender").addEventListener("change", register);
 
-window.addEventListener('load', register);
+  window.addEventListener('load', register);
+
+  // Mobile keyboard वर input वर नेण्यासाठी
+  const inputArea = document.getElementById("input-area");
+  const messageInput = document.getElementById("message");
+  messageInput.addEventListener("focus", () => {
+    setTimeout(() => {
+      inputArea.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, 300);
+  });
 </script>
 
 </body>
