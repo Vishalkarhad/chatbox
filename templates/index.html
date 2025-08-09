@@ -3,54 +3,120 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Two Friends Chat with Live Preview</title>
+<title>Two Friends Chat</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 0; padding-bottom: 70px; background: #f5f5f5;}
-  #chat-box {
-    padding: 10px;
-    overflow-y: auto;
-    height: calc(100vh - 70px);
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f0f2f5;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    height: 100vh;
   }
+
+  /* Chat box */
+  #chat-box {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Chat bubbles */
   .message {
-    max-width: 60%;
-    padding: 8px 12px;
-    margin: 5px;
-    border-radius: 10px;
+    max-width: 70%;
+    padding: 10px 14px;
+    margin: 6px 0;
+    border-radius: 18px;
+    line-height: 1.4;
+    font-size: 15px;
+    position: relative;
     word-wrap: break-word;
-    line-height: 1.3;
-    font-size: 16px;
   }
   .sender {
-    background: #d1e7ff;
+    background: #0084ff;
+    color: white;
     align-self: flex-end;
-    text-align: right;
+    border-bottom-right-radius: 5px;
   }
   .receiver {
-    background: #c1f7d1;
+    background: #e4e6eb;
+    color: #050505;
     align-self: flex-start;
-    text-align: left;
+    border-bottom-left-radius: 5px;
   }
+
+  /* Seen status ticks */
+  .status {
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 5px;
+  }
+  .tick {
+    display: inline-block;
+    margin-left: 1px;
+    transform: scale(1.2);
+  }
+  .tick.single::before {
+    content: '✓';
+  }
+  .tick.double::before {
+    content: '✓✓';
+  }
+  .tick.blue {
+    color: #34b7f1;
+  }
+
+  /* Typing preview */
   .preview {
-    opacity: 0.6;
     font-style: italic;
+    opacity: 0.6;
   }
+
+  /* Input area */
   #input-area {
-    position: fixed;
-    bottom: 0; left: 0; width: 100%;
-    background: white;
-    padding: 10px;
     display: flex;
-    gap: 5px;
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-  }
-  input, select, button {
+    align-items: flex-end;
     padding: 8px;
-    font-size: 16px;
+    background: white;
+    border-top: 1px solid #ddd;
   }
-  input { flex: 1;}
+  select {
+    padding: 6px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    margin-right: 5px;
+  }
+  textarea {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 15px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    resize: none;
+    overflow-y: hidden;
+    max-height: 100px;
+  }
+  button {
+    background: #0084ff;
+    border: none;
+    color: white;
+    padding: 10px;
+    border-radius: 50%;
+    margin-left: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  button::before {
+    content: '➤';
+    font-size: 18px;
+    transform: rotate(45deg);
+  }
 </style>
 </head>
 <body>
@@ -62,129 +128,121 @@
     <option value="friend1">Friend 1</option>
     <option value="friend2">Friend 2</option>
   </select>
-  <input type="text" id="message" placeholder="Type a message..." autocomplete="off"/>
-  <button id="send-btn">Send</button>
+  <textarea id="message" placeholder="Type a message..." rows="1"></textarea>
+  <button id="send-btn"></button>
 </div>
 
-<!-- Socket.IO client -->
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
-  const room_id = window.location.pathname.split("/").pop();
-  const socket = io(); // connects to same origin
-  let currentUser = document.getElementById("sender").value;
+const room_id = window.location.pathname.split("/").pop();
+const socket = io();
+let currentUser = document.getElementById("sender").value;
 
-  // register on connect
-  function register() {
+function register() {
   currentUser = document.getElementById("sender").value;
   socket.emit('register', { username: currentUser, room_id: room_id });
   document.getElementById("message").value = "";
   renderChat([]);
 }
 
-  // Local in-memory messages for display (mirrors server)
-  let messages = [];
-  let currentPreview = ""; // preview from other user
+let messages = [];
+let currentPreview = "";
 
-  function renderChat(extraMsgs=[]) {
-    const chatBox = document.getElementById("chat-box");
-    chatBox.innerHTML = "";
-    const all = messages.concat(extraMsgs);
-    all.sort((a,b) => a.timestamp - b.timestamp);
+function renderChat(extraMsgs=[]) {
+  const chatBox = document.getElementById("chat-box");
+  chatBox.innerHTML = "";
+  const all = messages.concat(extraMsgs);
+  all.sort((a,b) => a.timestamp - b.timestamp);
 
-    all.forEach(msg => {
-      const div = document.createElement("div");
-      div.classList.add("message");
-      if(msg.sender === currentUser) {
-        div.classList.add("sender");
-      } else {
-        div.classList.add("receiver");
-      }
-      div.textContent = msg.text;
-      chatBox.appendChild(div);
-    });
-
-    // show preview from other user
-    const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
-    if(currentPreview && currentPreview.trim() !== "") {
-      const previewDiv = document.createElement("div");
-      previewDiv.classList.add("message", "receiver", "preview");
-      previewDiv.textContent = currentPreview;
-      chatBox.appendChild(previewDiv);
+  all.forEach(msg => {
+    const div = document.createElement("div");
+    div.classList.add("message");
+    if(msg.sender === currentUser) {
+      div.classList.add("sender");
+    } else {
+      div.classList.add("receiver");
     }
+    div.innerHTML = `
+      ${msg.text}
+      ${msg.sender === currentUser ? 
+        `<span class="status">
+          ${msg.status === 'sent' ? '<span class="tick single"></span>' :
+            msg.status === 'delivered' ? '<span class="tick double"></span>' :
+            msg.status === 'seen' ? '<span class="tick double blue"></span>' : ''}
+        </span>` 
+      : ''}
+    `;
+    chatBox.appendChild(div);
+  });
 
-    chatBox.scrollTop = chatBox.scrollHeight;
+  const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
+  if(currentPreview && currentPreview.trim() !== "") {
+    const previewDiv = document.createElement("div");
+    previewDiv.classList.add("message", "receiver", "preview");
+    previewDiv.textContent = currentPreview;
+    chatBox.appendChild(previewDiv);
   }
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
 
-  // receive history from server
-  socket.on('history', (data) => {
-    messages = data || [];
+socket.on('history', (data) => {
+  messages = data || [];
+  renderChat();
+});
+
+socket.on('new_message', (msg) => {
+  messages.push(msg);
+  renderChat();
+});
+
+socket.on('preview', (data) => {
+  const from = data.from;
+  const text = data.text || "";
+  const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
+  if(from === otherUser) {
+    currentPreview = text;
     renderChat();
-  });
+  }
+});
 
-  // receive a new message
-  socket.on('new_message', (msg) => {
-    messages.push(msg);
-    renderChat();
-  });
-
-  // receive preview/typing from other user
-  socket.on('preview', (data) => {
-    // data: { from: 'friend1', text: '...' }
-    const from = data.from;
-    const text = data.text || "";
-    const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
-    // only accept preview if it's from the other user
-    if(from === otherUser) {
-      currentPreview = text;
-      renderChat();
-    }
-  });
-
-  function sendMessage() {
+function sendMessage() {
   const sender = currentUser;
   const receiver = sender === "friend1" ? "friend2" : "friend1";
   const text = document.getElementById("message").value.trim();
   if (!text) return;
-  socket.emit('send_message', { sender, receiver, text, room_id: room_id });
+  socket.emit('send_message', { sender, receiver, text, room_id: room_id, status: 'sent' });
   document.getElementById("message").value = "";
+  autoResize();
   socket.emit('typing', { sender, receiver, text: '', room_id: room_id });
 }
 
-  // typing preview emit
-  let typingTimer = null;
-  function previewMessage() {
+function previewMessage() {
   const sender = currentUser;
   const receiver = sender === "friend1" ? "friend2" : "friend1";
   const text = document.getElementById("message").value;
   socket.emit('typing', { sender, receiver, text, room_id: room_id });
 }
 
-  // UI events
-  document.getElementById("send-btn").addEventListener("click", sendMessage);
-  document.getElementById("message").addEventListener("input", previewMessage);
-  document.getElementById("message").addEventListener("keydown", e => {
-    if(e.key === "Enter") {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-  document.getElementById("sender").addEventListener("change", () => {
-    // change current user, register again
-    register();
-  });
-
-  // when page loads, register
-  window.addEventListener('load', () => {
-    register();
-  });
-
-  // optional: also listen for manual history fetch (if needed)
-  async function fetchHistory() {
-    const res = await fetch('/history/' + currentUser);
-    const data = await res.json();
-    messages = data || [];
-    renderChat();
+document.getElementById("send-btn").addEventListener("click", sendMessage);
+document.getElementById("message").addEventListener("input", () => {
+  previewMessage();
+  autoResize();
+});
+document.getElementById("message").addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
   }
+});
+document.getElementById("sender").addEventListener("change", register);
+
+function autoResize() {
+  const textarea = document.getElementById("message");
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
+
+window.addEventListener('load', register);
 </script>
 
 </body>
