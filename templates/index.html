@@ -14,16 +14,15 @@
     height: 100vh;
   }
 
-  /* Chat box */
   #chat-box {
     flex: 1;
     padding: 15px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end; /* Chat नेहमी खाली */
   }
 
-  /* Chat bubbles */
   .message {
     max-width: 70%;
     padding: 10px 14px;
@@ -47,7 +46,6 @@
     border-bottom-left-radius: 5px;
   }
 
-  /* Seen status ticks */
   .status {
     font-size: 11px;
     display: inline-flex;
@@ -69,19 +67,19 @@
     color: #34b7f1;
   }
 
-  /* Typing preview */
   .preview {
     font-style: italic;
     opacity: 0.6;
   }
 
-  /* Input area */
   #input-area {
     display: flex;
     align-items: flex-end;
     padding: 8px;
     background: white;
     border-top: 1px solid #ddd;
+    position: sticky;
+    bottom: 0;
   }
   select {
     padding: 6px;
@@ -193,6 +191,10 @@ socket.on('history', (data) => {
 socket.on('new_message', (msg) => {
   messages.push(msg);
   renderChat();
+  // जर दुसऱ्या user ने मेसेज वाचला तर tick update करणे
+  if(msg.receiver === currentUser) {
+    socket.emit('mark_seen', { messageId: msg.id, room_id: room_id });
+  }
 });
 
 socket.on('preview', (data) => {
@@ -203,6 +205,12 @@ socket.on('preview', (data) => {
     currentPreview = text;
     renderChat();
   }
+});
+
+socket.on('update_status', (data) => {
+  const { messageId, status } = data;
+  messages = messages.map(m => m.id === messageId ? { ...m, status } : m);
+  renderChat();
 });
 
 function sendMessage() {
