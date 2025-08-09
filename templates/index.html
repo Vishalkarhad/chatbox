@@ -69,17 +69,17 @@
 <!-- Socket.IO client -->
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
+  const room_id = window.location.pathname.split("/").pop();
   const socket = io(); // connects to same origin
   let currentUser = document.getElementById("sender").value;
 
   // register on connect
   function register() {
-    currentUser = document.getElementById("sender").value;
-    socket.emit('register', { username: currentUser });
-    // clear input and local preview UI
-    document.getElementById("message").value = "";
-    renderChat([]); // we will fetch history via socket 'history' event or via fetch
-  }
+  currentUser = document.getElementById("sender").value;
+  socket.emit('register', { username: currentUser, room_id: room_id });
+  document.getElementById("message").value = "";
+  renderChat([]);
+}
 
   // Local in-memory messages for display (mirrors server)
   let messages = [];
@@ -141,33 +141,23 @@
   });
 
   function sendMessage() {
-    const sender = document.getElementById("sender").value;
-    const receiver = sender === "friend1" ? "friend2" : "friend1";
-    const messageInput = document.getElementById("message");
-    const text = messageInput.value.trim();
-    if(!text) return;
-    socket.emit('send_message', { sender, receiver, text });
-    messageInput.value = "";
-    // also clear typing / preview locally and notify server
-    socket.emit('typing', { sender, receiver, text: '' });
-  }
+  const sender = currentUser;
+  const receiver = sender === "friend1" ? "friend2" : "friend1";
+  const text = document.getElementById("message").value.trim();
+  if (!text) return;
+  socket.emit('send_message', { sender, receiver, text, room_id: room_id });
+  document.getElementById("message").value = "";
+  socket.emit('typing', { sender, receiver, text: '', room_id: room_id });
+}
 
   // typing preview emit
   let typingTimer = null;
   function previewMessage() {
-    const sender = document.getElementById("sender").value;
-    const receiver = sender === "friend1" ? "friend2" : "friend1";
-    const messageInput = document.getElementById("message");
-    const text = messageInput.value;
-
-    socket.emit('typing', { sender, receiver, text });
-
-    // optional: debounce rendering locally
-    if(typingTimer) clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-      // no-op; server pushes preview back to other user
-    }, 200);
-  }
+  const sender = currentUser;
+  const receiver = sender === "friend1" ? "friend2" : "friend1";
+  const text = document.getElementById("message").value;
+  socket.emit('typing', { sender, receiver, text, room_id: room_id });
+}
 
   // UI events
   document.getElementById("send-btn").addEventListener("click", sendMessage);
