@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Two Friends Chat with Live Preview</title>
+<title>Two Friends Chat</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 0; padding-bottom: 70px; background: #f5f5f5;}
   #chat-box {
@@ -71,35 +71,24 @@
         crossorigin="anonymous"></script>
 <script>
   const socket = io();
-
   const chatBox = document.getElementById('chat-box');
   const senderSelect = document.getElementById('sender');
   const messageInput = document.getElementById('message');
   const sendBtn = document.getElementById('send-btn');
 
-  // Store current typing timeout to emit stop_typing event after delay
-  let typingTimeout;
-
   function renderMessage(msg) {
     const div = document.createElement('div');
     div.classList.add('message');
-    if (msg.sender === senderSelect.value) {
-      div.classList.add('sender');
-    } else {
-      div.classList.add('receiver');
-    }
+    div.classList.add(msg.sender === senderSelect.value ? 'sender' : 'receiver');
     div.textContent = msg.text;
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
   function renderPreview(sender, text) {
-    // Remove old preview
     const oldPreview = document.querySelector('.preview');
     if (oldPreview) oldPreview.remove();
-
-    // If preview is from other user and not empty, show preview
-    if (sender !== senderSelect.value && text && text.trim() !== '') {
+    if (sender !== senderSelect.value && text.trim() !== '') {
       const previewDiv = document.createElement('div');
       previewDiv.classList.add('message', 'receiver', 'preview');
       previewDiv.textContent = text;
@@ -111,12 +100,11 @@
   sendBtn.addEventListener('click', () => {
     const text = messageInput.value.trim();
     if (!text) return;
-    const data = {
+    socket.emit('send_message', {
       sender: senderSelect.value,
       receiver: senderSelect.value === 'friend1' ? 'friend2' : 'friend1',
       text: text
-    };
-    socket.emit('send_message', data);
+    });
     messageInput.value = '';
     socket.emit('stop_typing', { sender: senderSelect.value });
   });
@@ -137,27 +125,14 @@
     }
   });
 
-  senderSelect.addEventListener('change', () => {
-    chatBox.innerHTML = '';
-    socket.emit('request_history');
-  });
-
-  socket.on('new_message', (msg) => {
-    renderMessage(msg);
-  });
-
-  socket.on('typing_update', (data) => {
-    renderPreview(data.sender, data.previewText || '');
-  });
-
+  socket.on('new_message', renderMessage);
+  socket.on('typing_update', (data) => renderPreview(data.sender, data.previewText || ''));
   socket.on('history', (messages) => {
     chatBox.innerHTML = '';
-    messages.forEach(msg => renderMessage(msg));
+    messages.forEach(renderMessage);
   });
 
-  // Request chat history on load
   socket.emit('request_history');
 </script>
-
 </body>
 </html>
