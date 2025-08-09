@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Two Friends Chat with Live Preview</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding-bottom: 70px; background: #f5f5f5;}
+  #chat-box {
+    padding: 10px;
+    overflow-y: auto;
+    height: calc(100vh - 70px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .message {
+    max-width: 60%;
+    padding: 8px 12px;
+    margin: 5px;
+    border-radius: 10px;
+    word-wrap: break-word;
+    line-height: 1.3;
+    font-size: 16px;
+  }
+  .sender {
+    background: #d1e7ff;
+    align-self: flex-end;
+    text-align: right;
+  }
+  .receiver {
+    background: #c1f7d1;
+    align-self: flex-start;
+    text-align: left;
+  }
+  .preview {
+    opacity: 0.6;
+    font-style: italic;
+  }
+  #input-area {
+    position: fixed;
+    bottom: 0; left: 0; width: 100%;
+    background: white;
+    padding: 10px;
+    display: flex;
+    gap: 5px;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+  }
+  input, select, button {
+    padding: 8px;
+    font-size: 16px;
+  }
+  input { flex: 1;}
+</style>
+</head>
+<body>
+
+<div id="chat-box"></div>
+
+<div id="input-area">
+  <select id="sender">
+    <option value="friend1">Friend 1</option>
+    <option value="friend2">Friend 2</option>
+  </select>
+  <input type="text" id="message" placeholder="Type a message..." autocomplete="off"/>
+  <button id="send-btn">Send</button>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"
+        integrity="sha384-Ct6ksn5TYtFrJ9w2VLVdjRfCp+u7lpK8eRC1mpUqyO4p4mqmQzzIqkY/5L0+rMoa"
+        crossorigin="anonymous"></script>
+<script>
+  const socket = io();
+
+  const chatBox = document.getElementById('chat-box');
+  const senderSelect = document.getElementById('sender');
+  const messageInput = document.getElementById('message');
+  const sendBtn = document.getElementById('send-btn');
+
+  // Store current typing timeout to emit stop_typing event after delay
+  let typingTimeout;
+
+  function renderMessage(msg) {
+    const div = document.createElement('div');
+    div.classList.add('message');
+    if (msg.sender === senderSelect.value) {
+      div.classList.add('sender');
+    } else {
+      div.classList.add('receiver');
+    }
+    div.textContent = msg.text;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function renderPreview(sender, text) {
+    // Remove old preview
+    const oldPreview = document.querySelector('.preview');
+    if (oldPreview) oldPreview.remove();
+
+    // If preview is from other user and not empty, show preview
+    if (sender !== senderSelect.value && text && text.trim() !== '') {
+      const previewDiv = document.createElement('div');
+      previewDiv.classList.add('message', 'receiver', 'preview');
+      previewDiv.textContent = text;
+      chatBox.appendChild(previewDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  }
+
+  sendBtn.addEventListener('click', () => {
+    const text = messageInput.value.trim();
+    if (!text) return;
+    const data = {
+      sender: senderSelect.value,
+      receiver: senderSelect.value === 'friend1' ? 'friend2' : 'friend1',
+      text: text
+    };
+    socket.emit('send_message', data);
+    messageInput.value = '';
+    socket.emit('stop_typing', { sender: senderSelect.value });
+  });
+
+  messageInput.addEventListener('input', () => {
+    const text = messageInput.value;
+    if (text.trim() === '') {
+      socket.emit('stop_typing', { sender: senderSelect.value });
+    } else {
+      socket.emit('typing_preview', { sender: senderSelect.value, previewText: text });
+    }
+  });
+
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendBtn.click();
+    }
+  });
+
+  senderSelect.addEventListener('change', () => {
+    chatBox.innerHTML = '';
+    socket.emit('request_history');
+  });
+
+  socket.on('new_message', (msg) => {
+    renderMessage(msg);
+  });
+
+  socket.on('typing_update', (data) => {
+    renderPreview(data.sender, data.previewText || '');
+  });
+
+  socket.on('history', (messages) => {
+    chatBox.innerHTML = '';
+    messages.forEach(msg => renderMessage(msg));
+  });
+
+  // Request chat history on load
+  socket.emit('request_history');
+</script>
+
+</body>
+</html>
