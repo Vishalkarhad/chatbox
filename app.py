@@ -2,13 +2,17 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from pymongo import MongoClient
 import time, random, string
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'replace-with-a-secure-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Connect to MongoDB using the provided URI
-client = MongoClient('mongodb+srv://vishalkarhad99:Vishal%401999@chatbox.ybx9vki.mongodb.net/?retryWrites=true&w=majority&appName=chatBox')
+mongo_uri = os.getenv("MONGO_URI")
+client = MongoClient(mongo_uri)
 
 # Choose the database and collection
 db = client['chat_app_db']
