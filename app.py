@@ -5,11 +5,11 @@ import time, random, string
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'replace-with-a-secure-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
-
+load_dotenv()
 # Connect to MongoDB using the provided URI
 mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(mongo_uri)
