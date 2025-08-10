@@ -62,6 +62,7 @@ async function createRoom() {
     try {
         let res = await fetch('/create_room', { method: 'POST' });
         let data = await res.json();
+        console.log(data);
         let fullLink = window.location.origin + "/chat/" + data.room_id;
 
         alert("Your chat room link: " + fullLink);

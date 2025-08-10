@@ -49,7 +49,8 @@ def create_room():
             'messages': [],
             'previews': {}
         })
-        return jsonify({"room_id": room_id, "link": f"/chat/{room_id}"})
+        return jsonify({"room_id": room_id})
+
     except Exception as e:
         print("Error creating room:", e)
         return jsonify({"error": "Failed to create room"}), 500
