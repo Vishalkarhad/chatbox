@@ -43,16 +43,17 @@ def check_room(room_id):
 @app.route("/create_room", methods=["POST"])
 def create_room():
     try:
-        room_id = str(uuid.uuid4())
+        room_id = str(uuid.uuid4())[:8].upper()  # छोटं व सोपं room id
         rooms_collection.insert_one({
             'room_id': room_id,
             'messages': [],
             'previews': {}
         })
-        return jsonify({"room_id": room_id})
+        return jsonify({"room_id": room_id, "link": f"/chat/{room_id}"})
     except Exception as e:
         print("Error creating room:", e)
         return jsonify({"error": "Failed to create room"}), 500
+
 
 
 @app.route('/history/<room_id>/<username>')
