@@ -4,6 +4,8 @@ from pymongo import MongoClient
 import time, random, string
 from dotenv import load_dotenv
 import os
+import uuid
+
 
 
 app = Flask(__name__)
@@ -12,11 +14,9 @@ app.config['SECRET_KEY'] = 'replace-with-a-secure-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 load_dotenv()
 # Connect to MongoDB using the provided URI
-mongo_uri = os.getenv("MONGO_URI")
-client = MongoClient(mongo_uri)
-
-# Choose the database and collection
-db = client["chat_app_db"]
+mongo_uri = os.environ.get("MONGO_URI")
+client = MongoClient(mongo_uri, tlsAllowInvalidCertificates=True)
+db = client["your_database_name"]
 rooms_collection = db["rooms"]  # Collection for storing rooms, messages, and previews
 
 # In-memory (no longer needed as we're using MongoDB)
@@ -40,12 +40,20 @@ def check_room(room_id):
     room = rooms_collection.find_one({'room_id': room_id})
     return jsonify({"exists": bool(room)})
 
-@app.route('/create_room', methods=['POST'])
+@app.route("/create_room", methods=["POST"])
 def create_room():
-    room_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    # Create new room in MongoDB
-    rooms_collection.insert_one({'room_id': room_id, 'messages': [], 'previews': {}})
-    return jsonify({"room_id": room_id, "link": f"/chat/{room_id}"})
+    try:
+        room_id = str(uuid.uuid4())
+        rooms_collection.insert_one({
+            'room_id': room_id,
+            'messages': [],
+            'previews': {}
+        })
+        return jsonify({"room_id": room_id})
+    except Exception as e:
+        print("Error creating room:", e)
+        return jsonify({"error": "Failed to create room"}), 500
+
 
 @app.route('/history/<room_id>/<username>')
 def history(room_id, username):
