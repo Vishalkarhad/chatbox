@@ -4,3 +4,4 @@ eventlet
 gunicorn
 pymongo
 dotenv
+python-dotenv
