@@ -3,5 +3,4 @@ flask-socketio
 eventlet
 gunicorn
 pymongo
-dotenv
 python-dotenv

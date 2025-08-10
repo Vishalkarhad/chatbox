@@ -7,6 +7,7 @@ import os
 
 
 app = Flask(__name__)
+
 app.config['SECRET_KEY'] = 'replace-with-a-secure-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 load_dotenv()
@@ -15,8 +16,8 @@ mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(mongo_uri)
 
 # Choose the database and collection
-db = client['chat_app_db']
-rooms_collection = db['rooms']  # Collection for storing rooms, messages, and previews
+db = client["chat_app_db"]
+rooms_collection = db["rooms"]  # Collection for storing rooms, messages, and previews
 
 # In-memory (no longer needed as we're using MongoDB)
 SID_TO_INFO = {}
