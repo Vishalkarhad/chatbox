@@ -17,13 +17,15 @@
     color: white;
   }
   #chat-box {
+    
     padding: 10px;
     overflow-y: auto;
     height: calc(100vh - 70px);
     display: flex;
-    flex-direction: column-reverse; /* नवीन मेसेज खाली */
+    flex-direction: column-reverse;
   }
   .message {
+    
     max-width: 60%;
     padding: 8px 12px;
     margin: 5px;
@@ -32,26 +34,12 @@
     line-height: 1.3;
     font-size: 16px;
   }
-  .sender {
-    background: #d1e7ff;
-    align-self: flex-end;
-    text-align: right;
-  }
-  .receiver {
-    background: #c1f7d1;
-    align-self: flex-start;
-    text-align: left;
-  }
-  body.dark .sender {
-    background: #2e4a66;
-  }
-  body.dark .receiver {
-    background: #1d4d2e;
-  }
-  .preview {
-    opacity: 0.6;
-    font-style: italic;
-  }
+  .sender { background: #d1e7ff; align-self: flex-end; text-align: right; }
+  .receiver { background: #c1f7d1; align-self: flex-start; text-align: left; }
+  body.dark .sender { background: #2e4a66; }
+  body.dark .receiver { background: #1d4d2e; }
+  .preview { opacity: 0.6; font-style: italic; }
+  
   /* Fixed bottom input area */
   #input-area {
     position: fixed;
@@ -63,10 +51,10 @@
     gap: 6px;
     box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
     z-index: 10;
+    align-items: flex-end;
   }
-  body.dark #input-area {
-    background: #1e1e1e;
-  }
+  body.dark #input-area { background: #1e1e1e; }
+
   #sender {
     padding: 6px;
     font-size: 13px;
@@ -75,33 +63,27 @@
     background: #f9f9f9;
     flex: 0 0 80px;
   }
-  body.dark #sender {
-    background: #333;
-    color: white;
-    border: 1px solid #555;
-  }
+  body.dark #sender { background: #333; color: white; border: 1px solid #555; }
+
+  /* Auto-expand textarea */
   #message {
+    
     flex: 1;
-    padding: 10px 14px;
+    min-height: 40px;
+    max-height: 120px;
+    padding: 1px 19px;
     font-size: 15px;
     border-radius: 20px;
     border: 1px solid #ccc;
     background: #f5f5f5;
     outline: none;
-    transition: border 0.2s, background 0.2s;
+    resize: none;
+    overflow-y: auto;
   }
-  body.dark #message {
-    background: #2a2a2a;
-    color: white;
-    border: 1px solid #555;
-  }
-  #message:focus {
-    border-color: #32e812;
-    background: white;
-  }
-  body.dark #message:focus {
-    background: #333;
-  }
+  body.dark #message { background: #2a2a2a; color: white; border: 1px solid #555; }
+  #message:focus { border-color: #32e812; background: white; }
+  body.dark #message:focus { background: #333; }
+
   #send-btn {
     background: #1d5426;
     color: white;
@@ -112,11 +94,10 @@
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
-    margin-right: 20px; /* उजवीकडे मार्जिन */
+    margin-right: 20px;
   }
-  #send-btn:hover {
-    background: #056c29;
-  }
+  #send-btn:hover { background: #056c29; }
+
   /* Dark mode toggle */
   #dark-toggle {
     position: fixed;
@@ -142,7 +123,7 @@
     <option value="friend1">Friend 1</option>
     <option value="friend2">Friend 2</option>
   </select>
-  <input type="text" id="message" placeholder="Type a message..." autocomplete="off"/>
+  <textarea id="message" placeholder="Type a message..." autocomplete="off"></textarea>
   <button id="send-btn">Send</button>
 </div>
 
@@ -165,7 +146,7 @@
     const chatBox = document.getElementById("chat-box");
     chatBox.innerHTML = "";
     const all = messages.concat(extraMsgs);
-    all.sort((a,b) => b.timestamp - a.timestamp); // नवीन मेसेज खाली
+    all.sort((a,b) => b.timestamp - a.timestamp);
     all.forEach(msg => {
       const div = document.createElement("div");
       div.classList.add("message");
@@ -196,8 +177,11 @@
     const receiver = sender === "friend1" ? "friend2" : "friend1";
     socket.emit('send_message', { sender, receiver, text, room_id });
     document.getElementById("message").value = "";
+    document.getElementById("message").style.height = "40px"; // Reset height
+    setTimeout(() => document.getElementById("message").focus(), 10);
     socket.emit('typing', { sender, receiver, text: '', room_id });
   }
+
   function previewMessage() {
     const text = document.getElementById("message").value;
     const sender = currentUser;
@@ -205,16 +189,29 @@
     socket.emit('typing', { sender, receiver, text, room_id });
   }
 
+  // Auto-height textarea
+  const textarea = document.getElementById("message");
+  textarea.addEventListener("input", function() {
+    this.style.height = "auto";
+    this.style.height = Math.min(this.scrollHeight, 120) + "px";
+    previewMessage();
+  });
+
   document.getElementById("send-btn").addEventListener("click", sendMessage);
-  document.getElementById("message").addEventListener("input", previewMessage);
-  document.getElementById("message").addEventListener("keydown", e => { if(e.key === "Enter") { e.preventDefault(); sendMessage(); }});
+  textarea.addEventListener("keydown", e => {
+    if(e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
   document.getElementById("sender").addEventListener("change", register);
   window.addEventListener('load', register);
 
   // Dark mode toggle
   document.getElementById("dark-toggle").addEventListener("click", () => {
     document.body.classList.toggle("dark");
-    document.getElementById("dark-toggle").textContent = document.body.classList.contains("dark") ? "☀ Light Mode" : "🌙 Dark Mode";
+    document.getElementById("dark-toggle").textContent = 
+      document.body.classList.contains("dark") ? "☀ Light Mode" : "🌙 Dark Mode";
   });
 </script>
 </body>
