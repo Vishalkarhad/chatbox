@@ -28,28 +28,55 @@
 </div>
 
 <script>
-document.querySelector('.btn-go').addEventListener('click', async function () {
-    let roomNo = document.getElementById('roomNo').value.trim().toUpperCase();
+const roomInput = document.getElementById('roomNo');
+const goBtn = document.querySelector('.btn-go');
+const plusBtn = document.querySelector('.btn-plus');
+
+// Room Go Function
+async function goToRoom() {
+    let roomNo = roomInput.value.trim().toUpperCase();
     if (!roomNo) {
         alert("Please enter a room number");
         return;
     }
+    goBtn.disabled = true;
 
-    let res = await fetch(`/check_room/${roomNo}`);
-    let data = await res.json();
-    if (data.exists) {
-        window.location.href = `/chat/${roomNo}`;
-    } else {
-        alert("Room not created yet!");
+    try {
+        let res = await fetch(`/check_room/${roomNo}`);
+        let data = await res.json();
+        if (data.exists) {
+            window.location.href = `/chat/${roomNo}`;
+        } else {
+            alert("Room not created yet!");
+        }
+    } catch (err) {
+        alert("Error checking room. Try again.");
+    } finally {
+        goBtn.disabled = false;
     }
-});
+}
 
-document.querySelector('.btn-plus').addEventListener('click', async function () {
-    let res = await fetch('/create_room', { method: 'POST' });
-    let data = await res.json();
-    let fullLink = window.location.origin + data.link;
-    alert("Your chat room link: " + fullLink);
-    window.location.href = fullLink;
+// Create Room Function
+async function createRoom() {
+    plusBtn.disabled = true;
+    try {
+        let res = await fetch('/create_room', { method: 'POST' });
+        let data = await res.json();
+        let fullLink = window.location.origin + data.link;
+        alert("Your chat room link: " + fullLink);
+        window.location.href = fullLink;
+    } catch (err) {
+        alert("Error creating room. Try again.");
+    } finally {
+        plusBtn.disabled = false;
+    }
+}
+
+// Event Listeners
+goBtn.addEventListener('click', goToRoom);
+plusBtn.addEventListener('click', createRoom);
+roomInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') goToRoom();
 });
 </script>
 
