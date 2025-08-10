@@ -29,7 +29,7 @@
 
 <script>
 document.querySelector('.btn-go').addEventListener('click', async function () {
-    let roomNo = document.getElementById('roomNo').value.trim();
+    let roomNo = document.getElementById('roomNo').value.trim().toUpperCase();
     if (!roomNo) {
         alert("Please enter a room number");
         return;
@@ -47,11 +47,12 @@ document.querySelector('.btn-go').addEventListener('click', async function () {
 document.querySelector('.btn-plus').addEventListener('click', async function () {
     let res = await fetch('/create_room', { method: 'POST' });
     let data = await res.json();
-    let link = window.location.origin + data.link;
-    alert("Your chat room link: " + link);
-    window.location.href = data.link;
+    let fullLink = window.location.origin + data.link;
+    alert("Your chat room link: " + fullLink);
+    window.location.href = fullLink;
 });
 </script>
+
 
 </body>
 </html>

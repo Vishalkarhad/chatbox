@@ -28,6 +28,7 @@ def home_page():
 
 @app.route('/chat/<room_id>')
 def chat_page(room_id):
+    room_id = room_id.upper()
     room = rooms_collection.find_one({'room_id': room_id})
     if not room:
         return "Room not found", 404
@@ -35,6 +36,7 @@ def chat_page(room_id):
 
 @app.route('/check_room/<room_id>')
 def check_room(room_id):
+    room_id = room_id.upper()
     room = rooms_collection.find_one({'room_id': room_id})
     return jsonify({"exists": bool(room)})
 
