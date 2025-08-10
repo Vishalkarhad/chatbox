@@ -1,0 +1,113 @@
+body {
+  font-family: 'Inria Sans', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: white;
+}
+
+.chat-container {
+  max-width: 1200px;
+  margin: auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: black;
+  margin-top: 30px;
+}
+
+.chat-input-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  margin-top: 40px;
+  gap: 10px;
+}
+
+.chat-input-group label {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.chat-input-group input {
+  padding: 15px;
+  border-radius: 20px;
+  border: none;
+  background: #f2f2f2;
+  font-size: 1rem;
+  width: 250px;
+}
+
+.btn-go {
+  padding: 15px 25px;
+  background: #2EA859;
+  color: white;
+  font-size: 1rem;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+}
+.btn-go:hover {
+  background: #1F7A3D;
+}
+
+.chat-create-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 50px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.btn-plus {
+  width: 60px;
+  height: 60px;
+  background: #5D9EE9;
+  color: #100DE0;
+  font-size: 2rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.btn-plus:hover {
+  background: #4A8BC7;
+}
+
+.info {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 40px;
+}
+
+.highlight {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #F87C10;
+  margin-top: 30px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .title {
+    font-size: 1.8rem;
+  }
+
+  .chat-input-group {
+    flex-direction: column;
+  }
+
+  .chat-input-group input {
+    width: 100%;
+  }
+
+  .info, .highlight {
+    font-size: 1.2rem;
+  }
+}

@@ -10,14 +10,18 @@
     margin: 0;
     padding-bottom: 70px;
     background: #f5f5f5;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark {
+    background: #121212;
+    color: white;
   }
   #chat-box {
     padding: 10px;
     overflow-y: auto;
     height: calc(100vh - 70px);
     display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    flex-direction: column-reverse; /* नवीन मेसेज खाली */
   }
   .message {
     max-width: 60%;
@@ -38,11 +42,16 @@
     align-self: flex-start;
     text-align: left;
   }
+  body.dark .sender {
+    background: #2e4a66;
+  }
+  body.dark .receiver {
+    background: #1d4d2e;
+  }
   .preview {
     opacity: 0.6;
     font-style: italic;
   }
-
   /* Fixed bottom input area */
   #input-area {
     position: fixed;
@@ -55,8 +64,9 @@
     box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
     z-index: 10;
   }
-
-  /* Small dropdown */
+  body.dark #input-area {
+    background: #1e1e1e;
+  }
   #sender {
     padding: 6px;
     font-size: 13px;
@@ -65,8 +75,11 @@
     background: #f9f9f9;
     flex: 0 0 80px;
   }
-
-  /* Modern input */
+  body.dark #sender {
+    background: #333;
+    color: white;
+    border: 1px solid #555;
+  }
   #message {
     flex: 1;
     padding: 10px 14px;
@@ -77,12 +90,18 @@
     outline: none;
     transition: border 0.2s, background 0.2s;
   }
+  body.dark #message {
+    background: #2a2a2a;
+    color: white;
+    border: 1px solid #555;
+  }
   #message:focus {
     border-color: #32e812;
     background: white;
   }
-
-  /* Modern send button */
+  body.dark #message:focus {
+    background: #333;
+  }
   #send-btn {
     background: #1d5426;
     color: white;
@@ -93,14 +112,29 @@
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
+    margin-right: 20px; /* उजवीकडे मार्जिन */
   }
   #send-btn:hover {
     background: #056c29;
+  }
+  /* Dark mode toggle */
+  #dark-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    background: #444;
+    color: white;
+    font-size: 14px;
   }
 </style>
 </head>
 <body>
 
+<button id="dark-toggle">🌙 Dark Mode</button>
 <div id="chat-box"></div>
 
 <div id="input-area">
@@ -112,12 +146,13 @@
   <button id="send-btn">Send</button>
 </div>
 
-<!-- Socket.IO client -->
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
   const room_id = window.location.pathname.split("/").pop();
   const socket = io();
   let currentUser = document.getElementById("sender").value;
+  let messages = [];
+  let currentPreview = "";
 
   function register() {
     currentUser = document.getElementById("sender").value;
@@ -126,96 +161,61 @@
     renderChat([]);
   }
 
-  let messages = [];
-  let currentPreview = "";
-
   function renderChat(extraMsgs=[]) {
     const chatBox = document.getElementById("chat-box");
     chatBox.innerHTML = "";
     const all = messages.concat(extraMsgs);
-    all.sort((a,b) => a.timestamp - b.timestamp);
-
+    all.sort((a,b) => b.timestamp - a.timestamp); // नवीन मेसेज खाली
     all.forEach(msg => {
       const div = document.createElement("div");
       div.classList.add("message");
-      if(msg.sender === currentUser) {
-        div.classList.add("sender");
-      } else {
-        div.classList.add("receiver");
-      }
+      if(msg.sender === currentUser) div.classList.add("sender");
+      else div.classList.add("receiver");
       div.textContent = msg.text;
       chatBox.appendChild(div);
     });
-
-    const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
     if(currentPreview && currentPreview.trim() !== "") {
       const previewDiv = document.createElement("div");
       previewDiv.classList.add("message", "receiver", "preview");
       previewDiv.textContent = currentPreview;
-      chatBox.appendChild(previewDiv);
+      chatBox.prepend(previewDiv);
     }
-
-    chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  socket.on('history', (data) => {
-    messages = data || [];
-    renderChat();
-  });
-
-  socket.on('new_message', (msg) => {
-    messages.push(msg);
-    renderChat();
-  });
-
-  socket.on('preview', (data) => {
-    const from = data.from;
-    const text = data.text || "";
+  socket.on('history', data => { messages = data || []; renderChat(); });
+  socket.on('new_message', msg => { messages.unshift(msg); renderChat(); });
+  socket.on('preview', data => {
     const otherUser = currentUser === "friend1" ? "friend2" : "friend1";
-    if(from === otherUser) {
-      currentPreview = text;
-      renderChat();
-    }
+    if(data.from === otherUser) { currentPreview = data.text || ""; renderChat(); }
   });
 
   function sendMessage() {
-    const sender = currentUser;
-    const receiver = sender === "friend1" ? "friend2" : "friend1";
     const text = document.getElementById("message").value.trim();
     if (!text) return;
-    socket.emit('send_message', { sender, receiver, text, room_id: room_id });
-    document.getElementById("message").value = "";
-    socket.emit('typing', { sender, receiver, text: '', room_id: room_id });
-  }
-
-  function previewMessage() {
     const sender = currentUser;
     const receiver = sender === "friend1" ? "friend2" : "friend1";
+    socket.emit('send_message', { sender, receiver, text, room_id });
+    document.getElementById("message").value = "";
+    socket.emit('typing', { sender, receiver, text: '', room_id });
+  }
+  function previewMessage() {
     const text = document.getElementById("message").value;
-    socket.emit('typing', { sender, receiver, text, room_id: room_id });
+    const sender = currentUser;
+    const receiver = sender === "friend1" ? "friend2" : "friend1";
+    socket.emit('typing', { sender, receiver, text, room_id });
   }
 
   document.getElementById("send-btn").addEventListener("click", sendMessage);
   document.getElementById("message").addEventListener("input", previewMessage);
-  document.getElementById("message").addEventListener("keydown", e => {
-    if(e.key === "Enter") {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
+  document.getElementById("message").addEventListener("keydown", e => { if(e.key === "Enter") { e.preventDefault(); sendMessage(); }});
   document.getElementById("sender").addEventListener("change", register);
-
   window.addEventListener('load', register);
 
-  // Mobile keyboard वर input वर नेण्यासाठी
-  const inputArea = document.getElementById("input-area");
-  const messageInput = document.getElementById("message");
-  messageInput.addEventListener("focus", () => {
-    setTimeout(() => {
-      inputArea.scrollIntoView({ behavior: "smooth", block: "end" });
-    }, 300);
+  // Dark mode toggle
+  document.getElementById("dark-toggle").addEventListener("click", () => {
+    document.body.classList.toggle("dark");
+    document.getElementById("dark-toggle").textContent = document.body.classList.contains("dark") ? "☀ Light Mode" : "🌙 Dark Mode";
   });
 </script>
-
 </body>
 </html>

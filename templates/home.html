@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Private Chat Room</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="chat-container">
+    <p class="highlight">One to One Chat</p>
+  <h1 class="title">Create Private Chat Room</h1>
+
+  <div class="chat-input-group">
+    <label for="roomNo">Enter Chat Room NO :</label>
+    <input type="text" id="roomNo" placeholder="Room Number">
+    <button class="btn-go">Go</button>
+  </div>
+
+  <div class="chat-create-link">
+    <span>Create separate chat link :</span>
+    <button class="btn-plus">+</button>
+  </div>
+
+  <p class="info">No more sign up required for chatting</p>
+  <p class="info">Full privacy and safety</p>
+</div>
+
+<script>
+document.querySelector('.btn-go').addEventListener('click', async function () {
+    let roomNo = document.getElementById('roomNo').value.trim();
+    if (!roomNo) {
+        alert("Please enter a room number");
+        return;
+    }
+
+    let res = await fetch(`/check_room/${roomNo}`);
+    let data = await res.json();
+    if (data.exists) {
+        window.location.href = `/chat/${roomNo}`;
+    } else {
+        alert("Room not created yet!");
+    }
+});
+
+document.querySelector('.btn-plus').addEventListener('click', async function () {
+    let res = await fetch('/create_room', { method: 'POST' });
+    let data = await res.json();
+    let link = window.location.origin + data.link;
+    alert("Your chat room link: " + link);
+    window.location.href = data.link;
+});
+</script>
+
+</body>
+</html>
